@@ -15,18 +15,11 @@ public class TaskMenager {
         Scanner scanner = new Scanner(System.in);
         String input = "";
         String[][] tasks = new String[100][3];
+
         do {
-            try {
-                scan = new Scanner(file);
-            } catch (FileNotFoundException e) {
-                throw new RuntimeException(e);
-            }
-            int index = 0;
-            while (scan.hasNextLine() && index < tasks.length) {
-                String line = scan.nextLine();
-                tasks[index] = line.split(", ");
-                index++;
-            }
+            // Load tasks from file at the beginning of each loop iteration
+            tasks = loadTasksFromFile(file);
+
 
             System.out.println(ConsoleColors.BLUE + "Please select an option: " + ConsoleColors.RESET);
             System.out.println("add");
@@ -34,13 +27,16 @@ public class TaskMenager {
             System.out.println("list");
             System.out.println("exit");
             input = scanner.nextLine();
+
             switch (input) {
                 case "add":
                     add();
+                    //Reload tasks after adding
+                    tasks = loadTasksFromFile(file);
                     break;
                 case "remove":
-                   tasks = remove(tasks);
-                    System.out.println(Arrays.deepToString(tasks));
+                    tasks = remove(tasks);
+                    saveTasksToFile(file, tasks); // Save changes to file
                     break;
                 case "list":
                     list(tasks);
@@ -50,6 +46,40 @@ public class TaskMenager {
             }
         } while (!input.equals("exit"));
     }
+
+    private static String[][] loadTasksFromFile(File file) {
+        String[][] tasks = new String[100][3];
+        try (Scanner scan = new Scanner(file)) {
+            int index = 0;
+            while (scan.hasNextLine() && index < tasks.length) {
+                String line = scan.nextLine();
+                tasks[index] = line.split(", ");
+                index++;
+            }
+        } catch (FileNotFoundException e) {
+            System.out.println("Tasks file not found. Creating a new one.");
+            try {
+                file.createNewFile();
+            } catch (IOException ex) {
+                throw new RuntimeException("Error creating file: " + ex.getMessage());
+            }
+        }
+        return tasks;
+    }
+
+    private static void saveTasksToFile(File file, String[][] tasks) {
+        try (FileWriter writer = new FileWriter(file)) {
+            for (String[] task : tasks) {
+                if (task != null && task.length == 3 && !isRowEmpty(task)) {
+                    writer.write(String.join(", ", task) + "\n");
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Error saving tasks to file: " + e.getMessage());
+        }
+    }
+
+
 
     public static void add() {
         Scanner scan = new Scanner(System.in);
@@ -68,18 +98,23 @@ public class TaskMenager {
             } catch (IOException ex) {
                 System.out.println("Something went wrong");
             }
-        }while (!answer.equals("n"));
+        } while (!answer.equals("n"));
     }
 
     public static String[][] remove(String[][] tasks) {
         Scanner scanner = new Scanner(System.in);
-        System.out.println("Witch task do you want to remove? : ");
+        System.out.println("Which task do you want to remove? : ");
         String in = scanner.nextLine();
         try {
-            if (Integer.parseInt(in) > 0 && Integer.parseInt(in) < tasks.length) {
-                tasks = ArrayUtils.remove(tasks, Integer.parseInt(in)-1);
+            int indexToRemove = Integer.parseInt(in) - 1; // Adjust for 0-based indexing
+            if (indexToRemove >= 0 && indexToRemove < tasks.length && tasks[indexToRemove] != null) { //Check for valid index and not null
+                tasks = ArrayUtils.remove(tasks, indexToRemove);
+                System.out.println("Task removed.");
+
+            } else {
+                System.out.println("Invalid task number.");
             }
-        }catch (NumberFormatException ex) {
+        } catch (NumberFormatException ex) {
             System.out.println("Please enter a valid number.");
         }
         return tasks;
@@ -94,12 +129,13 @@ public class TaskMenager {
     }
 
     private static boolean isRowEmpty(String[] row) {
+        if (row == null) return true;
+
         for (String element : row) {
-            if (element != null && !element.isEmpty()) {
+            if (element != null && !element.trim().isEmpty()) {
                 return false;
             }
         }
         return true;
     }
-
 }
